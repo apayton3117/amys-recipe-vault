@@ -25,36 +25,21 @@ function parseRecipeOcr(raw){
   const lower=lines.map(x=>x.toLowerCase());
   const ingIndex=lower.findIndex(x=>/^ingredients?\b/.test(x));
   const instIndex=lower.findIndex(x=>/^(instructions?|directions?|method)\b/.test(x));
-
   let ingredients=[];
   let instructions=[];
-  if(ingIndex>=0){
-    const end=instIndex>ingIndex?instIndex:lines.length;
-    ingredients=lines.slice(ingIndex+1,end);
-  }
-  if(instIndex>=0){
-    instructions=lines.slice(instIndex+1);
-  }
-
+  if(ingIndex>=0){const end=instIndex>ingIndex?instIndex:lines.length;ingredients=lines.slice(ingIndex+1,end)}
+  if(instIndex>=0){instructions=lines.slice(instIndex+1)}
   const excluded=new Set([ingIndex,instIndex]);
   const titleCandidates=lines.map((x,i)=>({x,i}))
     .filter(({x,i})=>!excluded.has(i) && x.length>=3 && x.length<=60)
     .filter(({x})=>!/^\d+[.)]?\s/.test(x))
     .filter(({x})=>!/\b(cup|cups|tsp|tbsp|teaspoon|tablespoon|oz|ounce|lb|pound|degree|minutes?|hours?)\b/i.test(x))
     .filter(({x})=>!/^(ingredients?|instructions?|directions?|method)$/i.test(x));
-
   let title='';
-  if(ingIndex>=0 && instIndex>ingIndex){
-    const between=titleCandidates.filter(c=>c.i>ingIndex && c.i<instIndex);
-    if(between.length) title=between[between.length-1].x;
-  }
-  if(!title && ingIndex>0){
-    const before=titleCandidates.filter(c=>c.i<ingIndex);
-    if(before.length) title=before[before.length-1].x;
-  }
+  if(ingIndex>=0 && instIndex>ingIndex){const between=titleCandidates.filter(c=>c.i>ingIndex && c.i<instIndex);if(between.length) title=between[between.length-1].x}
+  if(!title && ingIndex>0){const before=titleCandidates.filter(c=>c.i<ingIndex);if(before.length) title=before[before.length-1].x}
   if(!title && titleCandidates.length) title=titleCandidates[0].x;
   if(title) ingredients=ingredients.filter(x=>x!==title);
-
   return {title,ingredients:ingredients.join('\n'),instructions:instructions.join('\n'),raw:lines.join('\n')};
 }
 
@@ -100,34 +85,51 @@ window.extractCurrentPhoto=async function(){
 
 (function(){
   const s=document.createElement('script');
-  s.src='./queue-tools-v1.js?v=20260819-1821';
+  s.src='./queue-tools-v1.js?v=20260819-1833';
   document.body.appendChild(s);
 })();
 
-// Wider desktop layout and roomier import/review sections.
+function relocateReviewPanels(){
+  const section=document.getElementById('import');
+  const layout=section?.querySelector('.import-layout');
+  if(!section || !layout) return;
+  const photo=document.getElementById('photoReview');
+  const website=document.getElementById('websiteReview');
+  if(photo && photo.parentElement!==section){photo.classList.add('full-review-panel');section.appendChild(photo)}
+  if(website && website.parentElement!==section){website.classList.add('full-review-panel');section.appendChild(website)}
+}
+window.addEventListener('DOMContentLoaded',relocateReviewPanels);
+setTimeout(relocateReviewPanels,0);
+
 (function(){
   const style=document.createElement('style');
-  style.id='amy-layout-width-fix';
+  style.id='amy-layout-width-fix-v2';
   style.textContent=`
+    .full-review-panel{width:100%;margin-top:22px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:var(--shadow)}
     @media (min-width: 1100px){
-      .shell{max-width:1560px;padding-left:28px;padding-right:28px}
+      .shell{max-width:none;width:100%;padding-left:30px;padding-right:30px}
       .layout{grid-template-columns:220px minmax(0,1fr);gap:26px}
-      .import-layout{grid-template-columns:minmax(0,1.45fr) minmax(390px,.85fr);gap:22px}
+      .import-layout{grid-template-columns:minmax(520px,1.2fr) minmax(440px,1fr);gap:22px;width:100%}
+      #import{width:100%}
       .panel{padding:26px}
-      .review-grid{grid-template-columns:minmax(340px,.85fr) minmax(520px,1.15fr);gap:24px}
-      .field input,.field textarea,.field select{width:100%}
-      .review-image-wrap{min-height:380px}
-      .review-image-wrap img{max-height:680px}
+      .full-review-panel .review-grid{grid-template-columns:minmax(420px,.95fr) minmax(620px,1.35fr);gap:30px}
+      .full-review-panel .field input,.full-review-panel .field textarea,.full-review-panel .field select{width:100%}
+      .full-review-panel .review-image-wrap{min-height:440px}
+      .full-review-panel .review-image-wrap img{max-height:760px}
     }
     @media (min-width: 1450px){
-      .shell{max-width:1720px}
-      .import-layout{grid-template-columns:minmax(0,1.55fr) minmax(420px,.8fr)}
-      .review-grid{grid-template-columns:minmax(390px,.9fr) minmax(580px,1.1fr)}
+      .shell{padding-left:36px;padding-right:36px}
+      .import-layout{grid-template-columns:minmax(600px,1.25fr) minmax(500px,.95fr)}
+      .full-review-panel .review-grid{grid-template-columns:minmax(480px,.9fr) minmax(720px,1.4fr)}
     }
     @media (max-width:1099px) and (min-width:781px){
       .shell{max-width:1180px}
       .import-layout{grid-template-columns:1fr}
-      .review-grid{grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr)}
+      .full-review-panel .review-grid{grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr)}
+    }
+    @media (max-width:780px){
+      .full-review-panel{padding:18px;border-radius:20px}
+      .full-review-panel .review-grid{grid-template-columns:1fr}
     }
   `;
   document.head.appendChild(style);
