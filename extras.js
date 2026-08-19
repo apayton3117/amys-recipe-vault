@@ -98,9 +98,37 @@ window.extractCurrentPhoto=async function(){
   }finally{if(btn) btn.disabled=false;}
 };
 
-// Load queue controls as a separate versioned file so the browser cannot reuse the old queue UI.
 (function(){
   const s=document.createElement('script');
   s.src='./queue-tools-v1.js?v=20260819-1821';
   document.body.appendChild(s);
+})();
+
+// Wider desktop layout and roomier import/review sections.
+(function(){
+  const style=document.createElement('style');
+  style.id='amy-layout-width-fix';
+  style.textContent=`
+    @media (min-width: 1100px){
+      .shell{max-width:1560px;padding-left:28px;padding-right:28px}
+      .layout{grid-template-columns:220px minmax(0,1fr);gap:26px}
+      .import-layout{grid-template-columns:minmax(0,1.45fr) minmax(390px,.85fr);gap:22px}
+      .panel{padding:26px}
+      .review-grid{grid-template-columns:minmax(340px,.85fr) minmax(520px,1.15fr);gap:24px}
+      .field input,.field textarea,.field select{width:100%}
+      .review-image-wrap{min-height:380px}
+      .review-image-wrap img{max-height:680px}
+    }
+    @media (min-width: 1450px){
+      .shell{max-width:1720px}
+      .import-layout{grid-template-columns:minmax(0,1.55fr) minmax(420px,.8fr)}
+      .review-grid{grid-template-columns:minmax(390px,.9fr) minmax(580px,1.1fr)}
+    }
+    @media (max-width:1099px) and (min-width:781px){
+      .shell{max-width:1180px}
+      .import-layout{grid-template-columns:1fr}
+      .review-grid{grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr)}
+    }
+  `;
+  document.head.appendChild(style);
 })();
