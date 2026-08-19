@@ -35,4 +35,9 @@
   }else if(document.getElementById('import')?.classList.contains('active')){
     renderQueue();
   }
+
+  // Load the saved-recipe detail enhancements after the base app is ready.
+  const detailScript=document.createElement('script');
+  detailScript.src='./recipe-details-v1.js?v=20260819-1957';
+  document.body.appendChild(detailScript);
 })();
