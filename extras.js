@@ -223,3 +223,10 @@ setTimeout(relocateReviewPanels,0);
   `;
   document.head.appendChild(style);
 })();
+
+// Load the authoritative v4 photo reader LAST so older saved OCR logic cannot win.
+(function(){
+  const s=document.createElement('script');
+  s.src='./photo-reader-v4.js?v=20260819-1908';
+  document.body.appendChild(s);
+})();
