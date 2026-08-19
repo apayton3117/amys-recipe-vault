@@ -35,3 +35,11 @@ window.renderQueue=function(){
 };
 
 renderQueue();
+
+(function(){
+  if(document.getElementById('amy-layout-fix-v3-loader')) return;
+  const s=document.createElement('script');
+  s.id='amy-layout-fix-v3-loader';
+  s.src='./layout-fix-v3.js?v=20260819-1837';
+  document.body.appendChild(s);
+})();
