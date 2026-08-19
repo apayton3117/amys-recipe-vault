@@ -36,7 +36,6 @@ function parseRecipeOcr(raw){
     instructions=lines.slice(instIndex+1);
   }
 
-  // Try to locate a likely recipe title anywhere outside the ingredient/instruction headings.
   const excluded=new Set([ingIndex,instIndex]);
   const titleCandidates=lines.map((x,i)=>({x,i}))
     .filter(({x,i})=>!excluded.has(i) && x.length>=3 && x.length<=60)
@@ -45,7 +44,6 @@ function parseRecipeOcr(raw){
     .filter(({x})=>!/^(ingredients?|instructions?|directions?|method)$/i.test(x));
 
   let title='';
-  // Prefer title-like text between ingredients and instructions, common on recipe cards.
   if(ingIndex>=0 && instIndex>ingIndex){
     const between=titleCandidates.filter(c=>c.i>ingIndex && c.i<instIndex);
     if(between.length) title=between[between.length-1].x;
@@ -55,16 +53,9 @@ function parseRecipeOcr(raw){
     if(before.length) title=before[before.length-1].x;
   }
   if(!title && titleCandidates.length) title=titleCandidates[0].x;
-
-  // If the title was captured inside ingredients, remove it there.
   if(title) ingredients=ingredients.filter(x=>x!==title);
 
-  return {
-    title,
-    ingredients:ingredients.join('\n'),
-    instructions:instructions.join('\n'),
-    raw:lines.join('\n')
-  };
+  return {title,ingredients:ingredients.join('\n'),instructions:instructions.join('\n'),raw:lines.join('\n')};
 }
 
 window.extractCurrentPhoto=async function(){
@@ -72,29 +63,20 @@ window.extractCurrentPhoto=async function(){
   const progress=document.getElementById('ocrProgress');
   const btn=document.getElementById('ocrButton');
   const img=document.getElementById('reviewPhoto');
-  if(!img || !img.src){
-    if(status) status.textContent='No recipe photo is selected.';
-    return;
-  }
-
+  if(!img || !img.src){if(status) status.textContent='No recipe photo is selected.';return;}
   try{
     if(btn) btn.disabled=true;
     if(status) status.textContent='Loading the photo text reader…';
     if(progress) progress.style.width='8%';
     await loadAmyOcr();
-
     if(status) status.textContent='Reading the recipe photo… this can take a little while.';
-    const worker=await Tesseract.createWorker('eng',1,{
-      logger:m=>{
-        if(m && m.status && status) status.textContent=m.status.replace(/_/g,' ');
-        if(m && typeof m.progress==='number' && progress) progress.style.width=Math.max(8,Math.round(m.progress*100))+'%';
-      }
-    });
-
+    const worker=await Tesseract.createWorker('eng',1,{logger:m=>{
+      if(m && m.status && status) status.textContent=m.status.replace(/_/g,' ');
+      if(m && typeof m.progress==='number' && progress) progress.style.width=Math.max(8,Math.round(m.progress*100))+'%';
+    }});
     const result=await worker.recognize(img.src);
     await worker.terminate();
     const parsed=parseRecipeOcr(result?.data?.text||'');
-
     const rawEl=document.getElementById('reviewRawText');
     const titleEl=document.getElementById('reviewTitle');
     const ingEl=document.getElementById('reviewIngredients');
@@ -103,25 +85,22 @@ window.extractCurrentPhoto=async function(){
     if(titleEl && !titleEl.value.trim()) titleEl.value=parsed.title;
     if(ingEl) ingEl.value=parsed.ingredients;
     if(instEl) instEl.value=parsed.instructions;
-
     if(progress) progress.style.width='100%';
     if(status) status.textContent='Photo read complete. Please check the recipe and correct anything that did not scan perfectly.';
-
     if(typeof currentReviewId!=='undefined' && currentReviewId){
       const q=queue.find(a=>a.id===currentReviewId);
-      if(q){
-        q.rawText=parsed.raw;
-        q.draftTitle=titleEl?.value||'';
-        q.draftIngredients=ingEl?.value||'';
-        q.draftInstructions=instEl?.value||'';
-        save();
-      }
+      if(q){q.rawText=parsed.raw;q.draftTitle=titleEl?.value||'';q.draftIngredients=ingEl?.value||'';q.draftInstructions=instEl?.value||'';save();}
     }
   }catch(err){
     console.error(err);
     if(progress) progress.style.width='0%';
     if(status) status.textContent='The photo reader could not finish. Refresh the app and try again. If it still fails, tell me what message appears here.';
-  }finally{
-    if(btn) btn.disabled=false;
-  }
+  }finally{if(btn) btn.disabled=false;}
 };
+
+// Load queue controls as a separate versioned file so the browser cannot reuse the old queue UI.
+(function(){
+  const s=document.createElement('script');
+  s.src='./queue-tools-v1.js?v=20260819-1821';
+  document.body.appendChild(s);
+})();
