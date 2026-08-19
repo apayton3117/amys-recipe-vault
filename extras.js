@@ -20,6 +20,23 @@ function cleanOcrLine(s){
   return String(s||'').replace(/[•●▪■]+/g,'').replace(/^[-–—]\s*/,'').replace(/\s+/g,' ').trim();
 }
 
+function filenameRecipeTitle(name=''){
+  return String(name)
+    .replace(/\.[a-z0-9]{2,5}$/i,'')
+    .replace(/[_-]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function titleLooksBad(title=''){
+  const t=String(title).trim();
+  if(!t || t.length<4 || t.length>70) return true;
+  if(/[0-9]/.test(t)) return true;
+  if(/\b(cup|cups|tsp|tbsp|teaspoon|tablespoon|oz|ounce|lb|pound|minutes?|hours?|preheat|bake|mix|stir|add)\b/i.test(t)) return true;
+  if(/[.:;!?]$/.test(t)) return true;
+  return false;
+}
+
 function parseRecipeOcr(raw){
   const lines=String(raw||'').split(/\r?\n/).map(cleanOcrLine).filter(Boolean);
   const lower=lines.map(x=>x.toLowerCase());
@@ -50,7 +67,7 @@ window.extractCurrentPhoto=async function(){
   const img=document.getElementById('reviewPhoto');
   if(!img || !img.src){if(status) status.textContent='No recipe photo is selected.';return;}
   try{
-    if(btn) btn.disabled=true;
+    if(btn){btn.disabled=true;btn.textContent='Reading Photo…';}
     if(status) status.textContent='Loading the photo text reader…';
     if(progress) progress.style.width='8%';
     await loadAmyOcr();
@@ -66,21 +83,35 @@ window.extractCurrentPhoto=async function(){
     const titleEl=document.getElementById('reviewTitle');
     const ingEl=document.getElementById('reviewIngredients');
     const instEl=document.getElementById('reviewInstructions');
+
+    let queueItem=null;
+    if(typeof currentReviewId!=='undefined' && currentReviewId){
+      queueItem=queue.find(a=>a.id===currentReviewId) || null;
+    }
+    const fileTitle=filenameRecipeTitle(queueItem?.name||'');
+    const bestTitle=titleLooksBad(parsed.title) && fileTitle ? fileTitle : (parsed.title || fileTitle);
+
     if(rawEl) rawEl.value=parsed.raw;
-    if(titleEl && !titleEl.value.trim()) titleEl.value=parsed.title;
+    if(titleEl) titleEl.value=bestTitle;
     if(ingEl) ingEl.value=parsed.ingredients;
     if(instEl) instEl.value=parsed.instructions;
     if(progress) progress.style.width='100%';
     if(status) status.textContent='Photo read complete. Please check the recipe and correct anything that did not scan perfectly.';
-    if(typeof currentReviewId!=='undefined' && currentReviewId){
-      const q=queue.find(a=>a.id===currentReviewId);
-      if(q){q.rawText=parsed.raw;q.draftTitle=titleEl?.value||'';q.draftIngredients=ingEl?.value||'';q.draftInstructions=instEl?.value||'';save();}
+
+    if(queueItem){
+      queueItem.rawText=parsed.raw;
+      queueItem.draftTitle=titleEl?.value||'';
+      queueItem.draftIngredients=ingEl?.value||'';
+      queueItem.draftInstructions=instEl?.value||'';
+      save();
     }
   }catch(err){
     console.error(err);
     if(progress) progress.style.width='0%';
     if(status) status.textContent='The photo reader could not finish. Refresh the app and try again. If it still fails, tell me what message appears here.';
-  }finally{if(btn) btn.disabled=false;}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Read Text From Photo';}
+  }
 };
 
 (function(){
@@ -109,9 +140,11 @@ setTimeout(relocateReviewPanels,0);
     @media (min-width: 1100px){
       .shell{max-width:none;width:100%;padding-left:30px;padding-right:30px}
       .layout{grid-template-columns:220px minmax(0,1fr);gap:26px}
-      .import-layout{grid-template-columns:minmax(520px,1.2fr) minmax(440px,1fr);gap:22px;width:100%}
+      .import-layout{display:grid;grid-template-columns:1fr;gap:22px;width:100%}
       #import{width:100%}
-      .panel{padding:26px}
+      #import .panel{width:100%;padding:26px}
+      #import .import-options{grid-template-columns:repeat(4,minmax(0,1fr))}
+      #queueList .queue-item{width:100%}
       .full-review-panel .review-grid{grid-template-columns:minmax(420px,.95fr) minmax(620px,1.35fr);gap:30px}
       .full-review-panel .field input,.full-review-panel .field textarea,.full-review-panel .field select{width:100%}
       .full-review-panel .review-image-wrap{min-height:440px}
@@ -119,7 +152,6 @@ setTimeout(relocateReviewPanels,0);
     }
     @media (min-width: 1450px){
       .shell{padding-left:36px;padding-right:36px}
-      .import-layout{grid-template-columns:minmax(600px,1.25fr) minmax(500px,.95fr)}
       .full-review-panel .review-grid{grid-template-columns:minmax(480px,.9fr) minmax(720px,1.4fr)}
     }
     @media (max-width:1099px) and (min-width:781px){
