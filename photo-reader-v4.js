@@ -1,0 +1,203 @@
+// Photo reader v4 — authoritative photo review/OCR behavior.
+(function(){
+  const OCR_VERSION=4;
+
+  function fileTitle(name=''){
+    return String(name)
+      .replace(/\.[a-z0-9]{2,5}$/i,'')
+      .replace(/[_-]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function genericFilename(name=''){
+    const t=fileTitle(name);
+    return !t || /^(img|image|photo|screenshot|recipe)[ _-]*\d*$/i.test(t) || /^\d{6,}$/.test(t);
+  }
+
+  function cleanLine(s=''){
+    return String(s)
+      .replace(/[•●▪■]+/g,'')
+      .replace(/^\s*[-–—]+\s*/,'')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function badTitle(t=''){
+    t=String(t).trim();
+    if(!t || t.length<3 || t.length>70) return true;
+    if(/^(ingredients?|instructions?|directions?|method)\b/i.test(t)) return true;
+    if(/\b(cup|cups|tsp|tbsp|oz|ounce|lb|pound|preheat|bake|mix|stir|add|recipe)\b/i.test(t)) return true;
+    if(/[0-9]/.test(t)) return true;
+    return false;
+  }
+
+  function stripIngredientNoise(line=''){
+    let s=cleanLine(line);
+    if(!s) return '';
+    if(/^(ingredients?|instructions?|directions?|method)\b/i.test(s)) return '';
+
+    // Remove common OCR bullet/noise characters before the first quantity.
+    s=s.replace(/^[^0-9¼½¾⅓⅔⅛⅜⅝⅞A-Za-z]*(?=[0-9¼½¾⅓⅔⅛⅜⅝⅞])/,'');
+    s=s.replace(/^(?:[A-Za-z]{1,3}\s+)(?=[0-9¼½¾⅓⅔⅛⅜⅝⅞])/,'');
+    s=s.replace(/^[®©@oOeE]\s*(?=[0-9¼½¾⅓⅔⅛⅜⅝⅞])/,'');
+
+    // Keep useful text through "double recipe" and drop OCR garbage after it.
+    const m=s.match(/^(.*?\bdouble recipe\b)/i);
+    if(m) s=m[1];
+
+    // Remove trailing random symbols/short OCR fragments.
+    s=s.replace(/\s+[|*_~]+.*$/,'').trim();
+    s=s.replace(/\s+[A-Z]{1,3}(?:\s+[A-Z]{1,3}){1,4}$/,'').trim();
+
+    // Ingredient lines should normally contain a quantity or a recognizable food word.
+    const hasQty=/\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(s);
+    const foodWord=/\b(salt|pepper|butter|milk|water|oil|flour|sugar|cheese|broccoli|crackers?|velveeta|egg|eggs|garlic|onion|cream|vanilla|yeast)\b/i.test(s);
+    if(!hasQty && !foodWord) return '';
+    return s;
+  }
+
+  function parseOcr(raw='', fallbackTitle=''){
+    const lines=String(raw).split(/\r?\n/).map(cleanLine).filter(Boolean);
+    const ingIndex=lines.findIndex(x=>/^ingredients?\b/i.test(x));
+    const instIndex=lines.findIndex(x=>/^(instructions?|directions?|method)\b/i.test(x));
+
+    let title='';
+    const fallback=!genericFilename(fallbackTitle)?fileTitle(fallbackTitle):'';
+
+    // Prefer a meaningful filename because recipe-card OCR commonly mistakes headings for titles.
+    if(fallback) title=fallback;
+
+    if(!title){
+      const candidates=lines.filter(x=>x.length>=3 && x.length<=60 && !badTitle(x));
+      title=candidates[0]||'';
+    }
+
+    let ingredientSource=[];
+    if(ingIndex>=0){
+      const end=instIndex>ingIndex?instIndex:lines.length;
+      ingredientSource=lines.slice(ingIndex+1,end);
+    }else if(instIndex>0){
+      ingredientSource=lines.slice(0,instIndex);
+    }
+
+    const titleLc=title.toLowerCase();
+    const ingredients=[];
+    for(const line of ingredientSource){
+      if(titleLc && line.toLowerCase()===titleLc) break;
+      const cleaned=stripIngredientNoise(line);
+      if(cleaned && !ingredients.includes(cleaned)) ingredients.push(cleaned);
+    }
+
+    let instructions=[];
+    if(instIndex>=0) instructions=lines.slice(instIndex+1);
+    instructions=instructions
+      .filter(x=>x && !/^(servings?|time|difficulty|calories?)\b/i.test(x))
+      .map(x=>x.replace(/^\s*(\d+)\s*[.)]?\s*/, '$1. '));
+
+    return {title,ingredients:ingredients.join('\n'),instructions:instructions.join('\n'),raw:lines.join('\n')};
+  }
+
+  let tesseractPromise=null;
+  function loadTesseract(){
+    if(window.Tesseract) return Promise.resolve();
+    if(tesseractPromise) return tesseractPromise;
+    tesseractPromise=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload=resolve;
+      s.onerror=()=>reject(new Error('Could not load OCR library'));
+      document.head.appendChild(s);
+    });
+    return tesseractPromise;
+  }
+
+  window.reviewPhoto=function(qid){
+    const x=queue.find(a=>a.id===qid);
+    if(!x) return;
+    currentReviewId=qid;
+    hideImportPanels();
+    const panel=document.getElementById('photoReview');
+    panel?.classList.add('active');
+    const img=document.getElementById('reviewPhoto');
+    if(img) img.src=x.thumb||'';
+
+    const titleEl=document.getElementById('reviewTitle');
+    const ingEl=document.getElementById('reviewIngredients');
+    const instEl=document.getElementById('reviewInstructions');
+    const rawEl=document.getElementById('reviewRawText');
+    const status=document.getElementById('ocrStatus');
+    const progress=document.getElementById('ocrProgress');
+
+    const stale=Number(x.ocrVersion||0)<OCR_VERSION;
+    const fallback=!genericFilename(x.name)?fileTitle(x.name):'';
+
+    if(stale){
+      // Do not keep displaying bad data generated by an older parser.
+      x.draftTitle=fallback;
+      x.draftIngredients='';
+      x.draftInstructions='';
+      x.rawText='';
+      x.ocrVersion=0;
+      save();
+      if(status) status.textContent='This photo was scanned with an older reader. Click Read Text From Photo to create a fresh scan.';
+    }else if(status){
+      status.textContent=x.rawText?'Previous scan loaded. You can review it or scan again.':'Ready to read this image.';
+    }
+
+    if(titleEl) titleEl.value=stale?fallback:(x.draftTitle||fallback);
+    if(ingEl) ingEl.value=stale?'':(x.draftIngredients||'');
+    if(instEl) instEl.value=stale?'':(x.draftInstructions||'');
+    if(rawEl) rawEl.value=stale?'':(x.rawText||'');
+    if(progress) progress.style.width='0%';
+
+    panel?.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+
+  window.extractCurrentPhoto=async function(){
+    const x=queue.find(a=>a.id===currentReviewId);
+    const img=document.getElementById('reviewPhoto');
+    const status=document.getElementById('ocrStatus');
+    const progress=document.getElementById('ocrProgress');
+    const btn=document.getElementById('ocrButton');
+    if(!x || !img?.src){if(status) status.textContent='No recipe photo is selected.';return;}
+
+    try{
+      if(btn){btn.disabled=true;btn.textContent='Reading Photo…';}
+      if(status) status.textContent='Loading photo reader…';
+      if(progress) progress.style.width='5%';
+      await loadTesseract();
+
+      const worker=await Tesseract.createWorker('eng',1,{logger:m=>{
+        if(m?.status && status) status.textContent=String(m.status).replace(/_/g,' ');
+        if(typeof m?.progress==='number' && progress) progress.style.width=Math.max(5,Math.round(m.progress*100))+'%';
+      }});
+      const result=await worker.recognize(img.src);
+      await worker.terminate();
+
+      const parsed=parseOcr(result?.data?.text||'',x.name||'');
+      document.getElementById('reviewTitle').value=parsed.title;
+      document.getElementById('reviewIngredients').value=parsed.ingredients;
+      document.getElementById('reviewInstructions').value=parsed.instructions;
+      document.getElementById('reviewRawText').value=parsed.raw;
+
+      x.draftTitle=parsed.title;
+      x.draftIngredients=parsed.ingredients;
+      x.draftInstructions=parsed.instructions;
+      x.rawText=parsed.raw;
+      x.ocrVersion=OCR_VERSION;
+      x.status='Ready to review';
+      save();
+      renderQueue();
+
+      if(progress) progress.style.width='100%';
+      if(status) status.textContent='Fresh scan complete. Review the fields and correct anything that did not scan perfectly.';
+    }catch(err){
+      console.error(err);
+      if(progress) progress.style.width='0%';
+      if(status) status.textContent='The photo reader could not finish this scan. Please try again.';
+    }finally{
+      if(btn){btn.disabled=false;btn.textContent='Read Text From Photo';}
+    }
+  };
+})();
