@@ -1,4 +1,4 @@
-const CACHE='amys-recipe-vault-v2';
+const CACHE='amys-recipe-vault-v3';
 const CORE=['./styles.css','./manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
@@ -19,17 +19,29 @@ self.addEventListener('fetch',event=>{
   if(req.method!=='GET') return;
   const url=new URL(req.url);
 
-  // Always request the newest HTML and JavaScript first so app updates appear immediately.
-  if(req.mode==='navigate' || /\.(?:js|html)$/.test(url.pathname)){
-    event.respondWith(
-      fetch(req,{cache:'no-store'})
-        .then(response=>response)
-        .catch(()=>caches.match(req))
-    );
+  if(req.mode==='navigate'){
+    event.respondWith((async()=>{
+      try{
+        const response=await fetch(req,{cache:'no-store'});
+        let html=await response.text();
+        if(!html.includes('ocr-v2.js')){
+          html=html.replace('</body>','<script src="./ocr-v2.js?v=20260819-1820"></script></body>');
+        }
+        const headers=new Headers(response.headers);
+        headers.set('cache-control','no-store');
+        return new Response(html,{status:response.status,statusText:response.statusText,headers});
+      }catch(e){
+        return caches.match('./index.html') || Response.error();
+      }
+    })());
     return;
   }
 
-  // Static assets can use cache-first behavior.
+  if(/\.(?:js|html)$/.test(url.pathname)){
+    event.respondWith(fetch(req,{cache:'no-store'}).catch(()=>caches.match(req)));
+    return;
+  }
+
   event.respondWith(
     caches.match(req).then(cached=>cached || fetch(req).then(response=>{
       const copy=response.clone();
