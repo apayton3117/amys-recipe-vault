@@ -45,21 +45,14 @@ function cleanIngredientLine(line=''){
   let s=cleanOcrLine(line);
   if(!s) return '';
   if(/^(ingredients?|instructions?|directions?|method)\b/i.test(s)) return '';
-
-  // Strip common OCR bullets / stray leading characters before a quantity.
   s=s.replace(/^[oOeE®©@*·•◦\-–—]+\s*(?=(?:\d|[¼½¾⅓⅔⅛⅜⅝⅞%]))/,'');
   const qty=s.search(/(?:\d|[¼½¾⅓⅔⅛⅜⅝⅞])/);
   if(qty>0 && qty<=8 && /^[^A-Za-z]{0,8}$/.test(s.slice(0,qty).trim())) s=s.slice(qty).trim();
   if(qty>0 && qty<=8 && /^[A-Za-z]{1,3}\s*$/.test(s.slice(0,qty))) s=s.slice(qty).trim();
-
-  // OCR often adds nonsense after the phrase “double recipe”. Keep the useful part.
   const dbl=s.toLowerCase().indexOf('double recipe');
   if(dbl>=0) s=s.slice(0,dbl+'double recipe'.length).trim();
-
-  // Drop very short all-letter fragments that are usually OCR noise.
   if(!/\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(s) && s.length<=9 && !/\b(salt|pepper|egg|eggs|oil|milk|water|butter|flour|sugar|yeast|garlic|onion)\b/i.test(s)) return '';
   if(/^[A-Z]{1,3}(?:\s+[A-Z]{1,3}){0,2}:?$/i.test(s) && s.length<=10) return '';
-
   return s.replace(/\s+[-–—]+\s*$/,'').trim();
 }
 
@@ -144,6 +137,7 @@ window.extractCurrentPhoto=async function(){
       queueItem.draftTitle=titleEl?.value||'';
       queueItem.draftIngredients=ingEl?.value||'';
       queueItem.draftInstructions=instEl?.value||'';
+      queueItem.ocrVersion=2;
       save();
     }
   }catch(err){
@@ -154,6 +148,28 @@ window.extractCurrentPhoto=async function(){
     if(btn){btn.disabled=false;btn.textContent='Read Text From Photo';}
   }
 };
+
+(function(){
+  const originalReviewPhoto=window.reviewPhoto;
+  if(typeof originalReviewPhoto==='function'){
+    window.reviewPhoto=function(qid){
+      originalReviewPhoto(qid);
+      const item=queue.find(x=>x.id===qid);
+      if(!item) return;
+      const titleEl=document.getElementById('reviewTitle');
+      const status=document.getElementById('ocrStatus');
+      const fileTitle=filenameRecipeTitle(item.name||'');
+      if(titleEl && titleLooksBad(titleEl.value) && fileTitle){
+        titleEl.value=fileTitle;
+        item.draftTitle=fileTitle;
+        save();
+      }
+      if(status && item.rawText && item.ocrVersion!==2){
+        status.textContent='An older scan is loaded. Click Read Text From Photo to rescan it with the improved reader.';
+      }
+    };
+  }
+})();
 
 (function(){
   const s=document.createElement('script');
