@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Amy's Recipe Vault — Website Import v3</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#fffaf4">
+</head>
+<body>
+<div class="app">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">♡</div>
+        <div>
+          <h1>Amy's Recipe Vault</h1>
+          <p>Your personal cookbook, all in one place</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="btn btn-soft" onclick="showView('recipes')">My Recipes</button>
+        <button type="button" class="btn btn-primary" onclick="showView('import')">＋ Add Recipe</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <nav class="nav">
+          <button type="button" data-view="home" class="active" onclick="showView('home')">⌂ <span>Home</span></button>
+          <button type="button" data-view="recipes" onclick="showView('recipes')">▤ <span>My Recipes</span></button>
+          <button type="button" data-view="import" onclick="showView('import')">＋ <span>Import Center</span></button>
+          <button type="button" data-view="collections" onclick="showView('collections')">⌑ <span>Collections</span></button>
+          <button type="button" data-view="grocery" onclick="showView('grocery')">✓ <span>Grocery List</span></button>
+          <button type="button" data-view="planner" onclick="showView('planner')">▦ <span>Meal Planner</span></button>
+        </nav>
+        <div class="sidebar-title">Your cookbook</div>
+        <div class="side-tip">
+          <strong>Built for a large collection.</strong><br>
+          Photos, handwritten cards, website links and typed recipes can all come into one review queue.
+        </div>
+      </aside>
+
+      <main>
+        <section id="home" class="view active">
+          <div class="hero">
+            <div class="eyebrow">Your personal recipe library</div>
+            <h2>Every recipe you love. Finally organized.</h2>
+            <p>Save family recipes, screenshots, handwritten cards, typed recipes and recipes from around the web — then find them fast when it's time to cook.</p>
+            <div class="hero-actions">
+              <button type="button" class="btn btn-primary" onclick="showView('import')">＋ Import Recipes</button>
+              <button type="button" class="btn btn-gold" onclick="openImportForm('manual')">✎ Add One Manually</button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><strong id="statRecipes">0</strong><span>Saved recipes</span></div>
+            <div class="stat"><strong id="statFavorites">0</strong><span>Favorites</span></div>
+            <div class="stat"><strong id="statQueue">0</strong><span>Waiting for review</span></div>
+            <div class="stat"><strong id="statCollections">0</strong><span>Collections</span></div>
+          </div>
+
+          <div class="section-head">
+            <div>
+              <h3>Quick Add</h3>
+              <p>Choose how this recipe is currently stored.</p>
+            </div>
+          </div>
+          <div class="quick-grid">
+            <button type="button" class="quick" onclick="openPhotoPicker()">
+              <div class="quick-icon q1">▧</div>
+              <strong>Photos & Screenshots</strong>
+              <span>Select multiple recipe cards, screenshots or cookbook photos from your device.</span>
+            </button>
+            <button type="button" class="quick" onclick="openImportForm('website')">
+              <div class="quick-icon q2">↗</div>
+              <strong>Website Recipes</strong>
+              <span>Paste one recipe URL or several links into your import queue.</span>
+            </button>
+            <button type="button" class="quick" onclick="openImportForm('text')">
+              <div class="quick-icon q3">¶</div>
+              <strong>Paste Typed Recipe</strong>
+              <span>Paste an entire typed recipe and save it as a structured recipe.</span>
+            </button>
+            <button type="button" class="quick" onclick="openImportForm('manual')">
+              <div class="quick-icon q4">✎</div>
+              <strong>Create Recipe</strong>
+              <span>Enter a recipe yourself and optionally add your own photo.</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="recipes" class="view">
+          <div class="section-head">
+            <div>
+              <h3>My Recipes</h3>
+              <p>Search your personal cookbook.</p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="showView('import')">＋ Add Recipe</button>
+          </div>
+          <div class="toolbar">
+            <div class="search">⌕ <input id="searchInput" placeholder="Search recipes, ingredients or tags..." oninput="renderRecipes()"></div>
+            <div class="filters">
+              <button type="button" class="chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
+              <button type="button" class="chip" data-filter="favorite" onclick="setFilter('favorite', this)">Favorites</button>
+              <button type="button" class="chip" data-filter="tested" onclick="setFilter('tested', this)">Tested</button>
+              <button type="button" class="chip" data-filter="saved" onclick="setFilter('saved', this)">To Try</button>
+            </div>
+          </div>
+          <div id="recipesGrid" class="recipes-grid"></div>
+        </section>
+
+        <section id="import" class="view">
+          <div class="section-head">
+            <div>
+              <h3>Recipe Import Center</h3>
+              <p>Bring your existing recipe collection into one place.</p>
+            </div>
+          </div>
+          <div class="import-layout">
+            <div class="panel">
+              <h3>How do you want to add recipes?</h3>
+              <p>Nothing is added to your permanent cookbook until you save or approve it.</p>
+
+              <div class="import-options">
+                <button type="button" class="import-option" onclick="openPhotoPicker()">
+                  <div class="quick-icon q1">▧</div>
+                  <strong>Photos / Screenshots</strong>
+                  <span>Select multiple images. They'll be placed in the review queue.</span>
+                </button>
+                <button type="button" class="import-option" onclick="openImportForm('website')">
+                  <div class="quick-icon q2">↗</div>
+                  <strong>Website Links</strong>
+                  <span>Paste one link or a whole list of recipe URLs.</span>
+                </button>
+                <button type="button" class="import-option" onclick="openImportForm('text')">
+                  <div class="quick-icon q3">¶</div>
+                  <strong>Paste Recipe Text</strong>
+                  <span>Turn a typed recipe into a saved recipe.</span>
+                </button>
+                <button type="button" class="import-option" onclick="openImportForm('manual')">
+                  <div class="quick-icon q4">✎</div>
+                  <strong>Create Manually</strong>
+                  <span>Add a recipe from scratch with ingredients and instructions.</span>
+                </button>
+              </div>
+
+              <input id="photoPicker" type="file" accept="image/*" multiple hidden onchange="handlePhotos(event)">
+
+              <div id="websiteForm" class="form-screen">
+                <div class="field">
+                  <label>Recipe website links</label>
+                  <textarea id="websiteUrls" placeholder="Paste one URL per line&#10;https://example.com/recipe-one&#10;https://example.com/recipe-two"></textarea>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="queueWebsiteUrls()">Add Links to Queue</button>
+              </div>
+
+              <div id="textForm" class="form-screen">
+                <div class="field">
+                  <label>Paste the full recipe</label>
+                  <textarea id="pastedRecipe" placeholder="Recipe title&#10;&#10;Ingredients&#10;2 cups ...&#10;1 tsp ...&#10;&#10;Instructions&#10;1. ...&#10;2. ..."></textarea>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="savePastedRecipe()">Create Recipe Draft</button>
+              </div>
+
+              <div id="manualForm" class="form-screen">
+                <div class="grid2">
+                  <div class="field"><label>Recipe name</label><input id="manualTitle" placeholder="Recipe name"></div>
+                  <div class="field"><label>Status</label>
+                    <select id="manualStatus">
+                      <option value="saved">Saved — haven't made it</option>
+                      <option value="tested">Tested & good</option>
+                      <option value="favorite">Favorite</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field"><label>Ingredients</label><textarea id="manualIngredients" placeholder="Enter one ingredient per line"></textarea></div>
+                <div class="field"><label>Instructions</label><textarea id="manualInstructions" placeholder="Enter the cooking directions"></textarea></div>
+                <div class="grid2">
+                  <div class="field"><label>Tags</label><input id="manualTags" placeholder="Dinner, Chicken, Air Fryer"></div>
+                  <div class="field"><label>Source / URL</label><input id="manualSource" placeholder="Optional"></div>
+                </div>
+                <div class="field"><label>Recipe photo</label><input id="manualPhoto" type="file" accept="image/*"></div>
+                <button type="button" class="btn btn-primary" onclick="saveManualRecipe()">Save Recipe</button>
+              </div>
+
+              <div id="photoReview" class="photo-review">
+                <div class="section-head" style="margin:0 0 12px">
+                  <div>
+                    <h3 style="font-size:22px">Review Recipe Photo</h3>
+                    <p>Read the image, correct anything that is wrong, then save the recipe.</p>
+                  </div>
+                </div>
+
+                <div class="review-grid">
+                  <div>
+                    <div class="review-image-wrap">
+                      <img id="reviewPhoto" alt="Recipe to review">
+                    </div>
+                    <div class="ocr-box">
+                      <strong style="font-size:12px;color:#4b3943">Photo text reader</strong>
+                      <div id="ocrStatus" class="ocr-status">Ready to read this image.</div>
+                      <div class="ocr-progress"><span id="ocrProgress"></span></div>
+                      <div class="review-actions">
+                        <button type="button" class="btn btn-primary" id="ocrButton" onclick="extractCurrentPhoto()">Read Text From Photo</button>
+                        <button type="button" class="btn btn-soft" onclick="clearPhotoReview()">Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="field">
+                      <label>Recipe name</label>
+                      <input id="reviewTitle" placeholder="Recipe name">
+                    </div>
+                    <div class="field">
+                      <label>Ingredients</label>
+                      <textarea id="reviewIngredients" placeholder="Ingredients will appear here after extraction. You can correct anything before saving."></textarea>
+                    </div>
+                    <div class="field">
+                      <label>Instructions</label>
+                      <textarea id="reviewInstructions" placeholder="Directions will appear here after extraction. You can correct anything before saving."></textarea>
+                    </div>
+                    <div class="grid2">
+                      <div class="field">
+                        <label>Tags</label>
+                        <input id="reviewTags" placeholder="Dinner, Bread, Dessert">
+                      </div>
+                      <div class="field">
+                        <label>Status</label>
+                        <select id="reviewStatus">
+                          <option value="saved">Saved — haven't made it</option>
+                          <option value="tested">Tested & good</option>
+                          <option value="favorite">Favorite</option>
+                        </select>
+                      </div>
+                    </div>
+                    <details style="margin:4px 0 14px">
+                      <summary style="cursor:pointer;font-size:12px;font-weight:800;color:var(--plum)">Show raw extracted text</summary>
+                      <div class="field" style="margin-top:8px">
+                        <textarea id="reviewRawText" placeholder="Raw OCR text will appear here." style="min-height:150px"></textarea>
+                      </div>
+                    </details>
+                    <button type="button" class="btn btn-primary" onclick="saveReviewedPhotoRecipe()">Save Recipe to My Cookbook</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h3>Import Queue</h3>
+              <p>Photos and links stay here until we review or connect the full extraction step.</p>
+              <div id="queueList" class="queue"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="collections" class="view">
+          <div class="placeholder-panel">
+            <h2>Collections</h2>
+            <p>This section is reserved for custom folders and tags such as Breakfast, Dinner, Bread & Dough, Copycat Recipes, Desserts and Family Favorites. We'll build this after the importer and recipe detail flow are approved.</p>
+          </div>
+        </section>
+
+        <section id="grocery" class="view">
+          <div class="placeholder-panel">
+            <h2>Grocery List</h2>
+            <p>The grocery system will let you send ingredients from any saved recipe into one combined shopping list and check items off as you shop.</p>
+          </div>
+        </section>
+
+        <section id="planner" class="view">
+          <div class="placeholder-panel">
+            <h2>Meal Planner</h2>
+            <p>The meal planner is staged for a later build so the recipe library and importing workflow are solid first.</p>
+          </div>
+        </section>
+
+        <section id="detail" class="view">
+          <button type="button" class="back-link" onclick="showView('recipes')">← Back to My Recipes</button>
+          <div id="detailCard" class="recipe-detail"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <nav class="mobile-nav">
+    <button type="button" data-view="home" class="active" onclick="showView('home')"><span class="nav-ico">⌂</span>Home</button>
+    <button type="button" data-view="recipes" onclick="showView('recipes')"><span class="nav-ico">▤</span>Recipes</button>
+    <button type="button" data-view="import" onclick="showView('import')"><span class="nav-ico">＋</span>Import</button>
+    <button type="button" data-view="grocery" onclick="showView('grocery')"><span class="nav-ico">✓</span>Grocery</button>
+    <button type="button" data-view="planner" onclick="showView('planner')"><span class="nav-ico">▦</span>Planner</button>
+  </nav>
+</div>
+
+<script src="app.js"></script>
+<script src="extras.js"></script>
+</body>
+</html>
