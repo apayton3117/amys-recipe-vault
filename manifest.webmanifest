@@ -1,0 +1,8 @@
+{
+  "name": "Amy's Recipe Vault",
+  "short_name": "Recipe Vault",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fffaf4",
+  "theme_color": "#fffaf4"
+}
