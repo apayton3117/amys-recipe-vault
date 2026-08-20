@@ -30,32 +30,23 @@
   };
 
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>{ if(document.getElementById('import')?.classList.contains('active')) renderQueue(); });
-  }else if(document.getElementById('import')?.classList.contains('active')){
-    renderQueue();
+    document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('import')?.classList.contains('active'))renderQueue()});
+  }else if(document.getElementById('import')?.classList.contains('active')) renderQueue();
+
+  function loadScript(src,id){
+    return new Promise((resolve,reject)=>{
+      document.getElementById(id)?.remove();
+      const s=document.createElement('script');s.id=id;s.src=src;s.onload=resolve;s.onerror=reject;document.body.appendChild(s);
+    });
   }
 
-  const storage=document.createElement('script');
-  storage.src='./storage-fix-v1.js?v=20260819-2031';
-  storage.onload=()=>{
-    const details=document.createElement('script');
-    details.src='./recipe-details-v1.js?v=20260819-2031';
-    details.onload=()=>{
-      const photoEdit=document.createElement('script');
-      photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2031';
-      photoEdit.onload=()=>{
-        const persistence=document.createElement('script');
-        persistence.src='./persistence-v2.js?v=20260819-2031';
-        persistence.onload=()=>{
-          const finalEdit=document.createElement('script');
-          finalEdit.src='./recipe-edit-v2.js?v=20260819-2031';
-          document.body.appendChild(finalEdit);
-        };
-        document.body.appendChild(persistence);
-      };
-      document.body.appendChild(photoEdit);
-    };
-    document.body.appendChild(details);
-  };
-  document.body.appendChild(storage);
+  (async()=>{
+    try{
+      await loadScript('./storage-fix-v1.js?v=20260819-2040','amy-storage-loader');
+      await loadScript('./recipe-details-v1.js?v=20260819-2040','amy-details-loader');
+      await loadScript('./persistence-v2.js?v=20260819-2040','amy-persistence-loader');
+      await loadScript('./final-ui-v1.js?v=20260819-2040','amy-final-ui-loader');
+      window.__amyRecipeEnhancementsReady=true;
+    }catch(err){console.error('Recipe enhancement load failed',err)}
+  })();
 })();
