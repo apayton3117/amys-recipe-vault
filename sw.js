@@ -1,4 +1,4 @@
-const CACHE='amys-recipe-vault-v3';
+const CACHE='amys-recipe-vault-v4';
 const CORE=['./styles.css','./manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
@@ -27,8 +27,11 @@ self.addEventListener('fetch',event=>{
         if(!html.includes('ocr-v2.js')){
           html=html.replace('</body>','<script src="./ocr-v2.js?v=20260819-1820"></script></body>');
         }
+        if(!html.includes('recipe-details-v1.js')){
+          html=html.replace('</body>','<script src="./recipe-details-v1.js?v=20260819-2010"></script><script src="./recipe-photo-edit-v1.js?v=20260819-2010"></script></body>');
+        }
         const headers=new Headers(response.headers);
-        headers.set('cache-control','no-store');
+        headers.set('cache-control','no-store, no-cache, must-revalidate');
         return new Response(html,{status:response.status,statusText:response.statusText,headers});
       }catch(e){
         return caches.match('./index.html') || Response.error();
