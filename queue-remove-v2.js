@@ -42,7 +42,7 @@
     details.src='./recipe-details-v1.js?v=20260819-2020';
     details.onload=()=>{
       const photoEdit=document.createElement('script');
-      photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2020';
+      photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2022';
       photoEdit.onload=()=>{
         const persistence=document.createElement('script');
         persistence.src='./persistence-v2.js?v=20260819-2020';
