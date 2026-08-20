@@ -36,13 +36,18 @@
     renderQueue();
   }
 
-  // Load the saved-recipe detail upgrades after the core app is ready.
-  const details=document.createElement('script');
-  details.src='./recipe-details-v1.js?v=20260819-2006';
-  details.onload=()=>{
-    const photoEdit=document.createElement('script');
-    photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2006';
-    document.body.appendChild(photoEdit);
+  // Load persistence fix first, then saved-recipe upgrades.
+  const storage=document.createElement('script');
+  storage.src='./storage-fix-v1.js?v=20260819-2018';
+  storage.onload=()=>{
+    const details=document.createElement('script');
+    details.src='./recipe-details-v1.js?v=20260819-2018';
+    details.onload=()=>{
+      const photoEdit=document.createElement('script');
+      photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2018';
+      document.body.appendChild(photoEdit);
+    };
+    document.body.appendChild(details);
   };
-  document.body.appendChild(details);
+  document.body.appendChild(storage);
 })();
