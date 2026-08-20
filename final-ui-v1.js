@@ -1,0 +1,30 @@
+// Final deterministic recipe-detail UI: 3:2 photo display + Edit Recipe.
+(function(){
+  function ensureStyles(){
+    let s=document.getElementById('amy-final-recipe-ui');
+    if(!s){s=document.createElement('style');s.id='amy-final-recipe-ui';document.head.appendChild(s)}
+    s.textContent=`#detailCard .detail-cover{width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:3/2!important;background:#f7f1ee!important;overflow:hidden!important;position:relative!important;display:grid!important;place-items:center!important}#detailCard .detail-cover img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important}.amy-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px}.amy-title-row h2{margin:0!important}.amy-edit-overlay{position:fixed;inset:0;z-index:3000;background:rgba(48,37,43,.5);display:grid;place-items:center;padding:20px;overflow:auto}.amy-edit-modal{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:24px;padding:24px;box-shadow:0 28px 80px rgba(48,37,43,.28)}.amy-edit-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.amy-edit-head h3{font-family:Georgia,serif;font-size:28px;color:#493942;margin:0}.amy-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.amy-edit-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:18px}.amy-edit-modal textarea{min-height:150px}@media(max-width:700px){.amy-edit-grid{grid-template-columns:1fr}.amy-edit-overlay{padding:10px}.amy-edit-modal{padding:18px;border-radius:20px}}`;
+  }
+  function escAttr(v=''){return String(v).replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function addEditButton(rid){
+    ensureStyles();const body=document.querySelector('#detailCard .detail-body');if(!body)return;
+    if(body.querySelector('.amy-edit-recipe-btn'))return;
+    const h2=body.querySelector('h2');if(!h2)return;
+    let row=h2.closest('.recipe-heading-row,.amy-title-row');
+    if(!row){row=document.createElement('div');row.className='amy-title-row';h2.parentNode.insertBefore(row,h2);row.appendChild(h2)}
+    const btn=document.createElement('button');btn.type='button';btn.className='btn btn-soft amy-edit-recipe-btn';btn.textContent='✎ Edit Recipe';btn.onclick=()=>window.amyEditRecipe(rid);row.appendChild(btn);
+  }
+  window.amyEditRecipe=function(rid){
+    const r=recipes.find(x=>x.id===rid);if(!r)return;document.querySelector('.amy-edit-overlay')?.remove();
+    const o=document.createElement('div');o.className='amy-edit-overlay';
+    o.innerHTML=`<div class="amy-edit-modal"><div class="amy-edit-head"><h3>Edit Recipe</h3><button type="button" class="btn btn-soft" id="amyClose">Close</button></div><div class="amy-edit-grid"><div class="field"><label>Recipe name</label><input id="amyTitle" value="${escAttr(r.title||'')}"></div><div class="field"><label>Status</label><select id="amyStatus"><option value="saved" ${r.status==='saved'&&!r.favorite?'selected':''}>Saved — haven't made it</option><option value="tested" ${r.status==='tested'?'selected':''}>Tested & good</option><option value="favorite" ${r.favorite?'selected':''}>Favorite</option></select></div><div class="field"><label>Prep time</label><input id="amyPrep" value="${escAttr(r.prepTime||'')}"></div><div class="field"><label>Cook time</label><input id="amyCook" value="${escAttr(r.cookTime||'')}"></div><div class="field"><label>Total time</label><input id="amyTotal" value="${escAttr(r.totalTime||'')}"></div><div class="field"><label>Tags</label><input id="amyTags" value="${escAttr((r.tags||[]).join(', '))}"></div></div><div class="field"><label>Ingredients</label><textarea id="amyIngredients">${escapeHtml(r.ingredients||'')}</textarea></div><div class="field"><label>Instructions</label><textarea id="amyInstructions">${escapeHtml(r.instructions||'')}</textarea></div><div class="field"><label>Notes</label><textarea id="amyNotes">${escapeHtml(r.notes||'')}</textarea></div><div class="field"><label>Source / URL</label><input id="amySource" value="${escAttr(r.source||'')}"></div><div class="amy-edit-actions"><button type="button" class="btn btn-soft" id="amyCancel">Cancel</button><button type="button" class="btn btn-primary" id="amySave">Save Changes</button></div></div>`;
+    document.body.appendChild(o);const close=()=>o.remove();o.querySelector('#amyClose').onclick=close;o.querySelector('#amyCancel').onclick=close;o.addEventListener('click',e=>{if(e.target===o)close()});
+    o.querySelector('#amySave').onclick=()=>{const v=id=>(o.querySelector('#'+id)?.value||'').trim(),title=v('amyTitle');if(!title)return alert('Recipe name cannot be blank.');const st=v('amyStatus'),old={...r,tags:[...(r.tags||[])]};r.title=title;r.status=st==='favorite'?'saved':st;r.favorite=st==='favorite';r.prepTime=v('amyPrep');r.cookTime=v('amyCook');r.totalTime=v('amyTotal');r.tags=v('amyTags').split(',').map(x=>x.trim()).filter(Boolean);r.ingredients=v('amyIngredients');r.instructions=v('amyInstructions');r.notes=v('amyNotes');r.source=v('amySource');const ok=save();if(ok===false){Object.assign(r,old);return alert('Your changes could not be saved.')}close();renderRecipes();window.openRecipe(rid)};
+  };
+  function install(){
+    ensureStyles();if(typeof window.openRecipe!=='function'||window.openRecipe.__amyFinalUI)return false;
+    const original=window.openRecipe;const wrapped=function(rid){original(rid);setTimeout(()=>addEditButton(rid),0)};wrapped.__amyFinalUI=true;window.openRecipe=wrapped;return true;
+  }
+  if(!install()){const t=setInterval(()=>{if(install())clearInterval(t)},50);setTimeout(()=>clearInterval(t),10000)}
+  window.__amyFinalRecipeUILoaded=true;
+})();
