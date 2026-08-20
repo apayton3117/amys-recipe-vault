@@ -1,12 +1,11 @@
-// Recipe detail enhancements: times, batch scaling, and notes.
+// Recipe detail enhancements: times, batch scaling, notes, direct edit controls.
 (function(){
-  const VERSION='20260819-1957';
-
   function ensureStyles(){
-    if(document.getElementById('recipe-detail-enhancement-styles')) return;
-    const s=document.createElement('style');
-    s.id='recipe-detail-enhancement-styles';
+    let s=document.getElementById('recipe-detail-enhancement-styles');
+    if(!s){s=document.createElement('style');s.id='recipe-detail-enhancement-styles';document.head.appendChild(s)}
     s.textContent=`
+      #detailCard .detail-cover{width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:3/2!important;background:#f7f1ee!important;display:grid!important;place-items:center!important;overflow:hidden!important;position:relative!important}
+      #detailCard .detail-cover img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center center!important;display:block!important}
       .recipe-time-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0 18px}
       .recipe-time-card{border:1px solid var(--line);background:#fbf8f6;border-radius:16px;padding:14px 16px}
       .recipe-time-card span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;margin-bottom:4px}
@@ -15,205 +14,36 @@
       .recipe-tab-btn{border:1px solid var(--line);background:#fff;color:#5b5055;border-radius:999px;padding:9px 14px;font-size:12px;font-weight:800}
       .recipe-tab-btn.active{background:var(--plum);border-color:var(--plum);color:#fff}
       .recipe-tab-panel{display:none}.recipe-tab-panel.active{display:block}
-      .batch-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-      .batch-btn{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 14px;font-weight:800;color:#5b5055}
-      .batch-btn.active{background:#f4e8ee;color:var(--plum);border-color:#d9bdcd}
-      .batch-note{font-size:12px;color:var(--muted);margin:-6px 0 16px}
-      .notes-box{width:100%;min-height:180px;border:1px solid #e5d9d2;border-radius:14px;background:#fdfbf9;padding:13px;resize:vertical;color:var(--ink);font:inherit}
+      .batch-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.batch-btn{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 14px;font-weight:800;color:#5b5055}.batch-btn.active{background:#f4e8ee;color:var(--plum);border-color:#d9bdcd}
+      .batch-note{font-size:12px;color:var(--muted);margin:-6px 0 16px}.notes-box{width:100%;min-height:180px;border:1px solid #e5d9d2;border-radius:14px;background:#fdfbf9;padding:13px;resize:vertical;color:var(--ink);font:inherit}
       .times-entry-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 13px}
-      @media(max-width:700px){.recipe-time-grid,.times-entry-grid{grid-template-columns:1fr}.recipe-tabs{gap:6px}}
+      .recipe-heading-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:4px}.recipe-heading-row h2{margin:0!important}.edit-recipe-btn{white-space:nowrap}
+      .recipe-edit-overlay{position:fixed;inset:0;background:rgba(48,37,43,.48);z-index:1000;display:grid;place-items:center;padding:24px;overflow:auto}.recipe-edit-modal{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 28px 80px rgba(48,37,43,.28);padding:24px}.recipe-edit-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.recipe-edit-modal-head h3{font-family:Georgia,serif;font-size:28px;color:#493942;margin:0}.recipe-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.recipe-edit-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:18px}.recipe-edit-modal textarea{min-height:150px}
+      @media(max-width:700px){.recipe-time-grid,.times-entry-grid,.recipe-edit-grid{grid-template-columns:1fr}.recipe-tabs{gap:6px}.recipe-edit-overlay{padding:10px}.recipe-edit-modal{padding:18px;border-radius:20px}}
     `;
-    document.head.appendChild(s);
   }
+  function setValue(id,v=''){const el=document.getElementById(id);if(el)el.value=v||''} function getValue(id){return(document.getElementById(id)?.value||'').trim()}
+  function addTimeFields(container,prefix,beforeEl){if(!container||document.getElementById(prefix+'PrepTime'))return;const w=document.createElement('div');w.className='times-entry-grid';w.innerHTML=`<div class="field"><label>Prep time</label><input id="${prefix}PrepTime" placeholder="e.g. 15 minutes"></div><div class="field"><label>Cook time</label><input id="${prefix}CookTime" placeholder="e.g. 30 minutes"></div><div class="field"><label>Total time</label><input id="${prefix}TotalTime" placeholder="e.g. 45 minutes"></div>`;beforeEl&&beforeEl.parentElement===container?container.insertBefore(w,beforeEl):container.appendChild(w)}
+  function addNotesField(container,prefix,beforeEl){if(!container||document.getElementById(prefix+'Notes'))return;const w=document.createElement('div');w.className='field';w.innerHTML=`<label>Notes</label><textarea id="${prefix}Notes" placeholder="Optional notes about this recipe"></textarea>`;beforeEl&&beforeEl.parentElement===container?container.insertBefore(w,beforeEl):container.appendChild(w)}
+  function enhanceEntryForms(){const manual=document.getElementById('manualForm');if(manual){const b=[...manual.querySelectorAll('button')].find(x=>/save recipe/i.test(x.textContent));addTimeFields(manual,'manual',b);addNotesField(manual,'manual',b)}const photo=document.getElementById('photoReview');if(photo){const right=photo.querySelector('.review-grid > div:last-child'),d=right?.querySelector('details');addTimeFields(right,'review',d);addNotesField(right,'review',d)}}
 
-  function addTimeFields(container, prefix, beforeEl){
-    if(!container || document.getElementById(prefix+'PrepTime')) return;
-    const wrap=document.createElement('div');
-    wrap.className='times-entry-grid';
-    wrap.innerHTML=`
-      <div class="field"><label>Prep time</label><input id="${prefix}PrepTime" placeholder="e.g. 15 minutes"></div>
-      <div class="field"><label>Cook time</label><input id="${prefix}CookTime" placeholder="e.g. 30 minutes"></div>
-      <div class="field"><label>Total time</label><input id="${prefix}TotalTime" placeholder="e.g. 45 minutes"></div>`;
-    if(beforeEl && beforeEl.parentElement===container) container.insertBefore(wrap,beforeEl); else container.appendChild(wrap);
-  }
+  const poll=setInterval(()=>{if(typeof window.reviewPhoto==='function'&&!window.reviewPhoto.__timesWrapped){const original=window.reviewPhoto;const wrapped=function(qid){original(qid);setTimeout(()=>{enhanceEntryForms();const x=queue.find(a=>a.id===qid);if(!x)return;setValue('reviewPrepTime',x.draftPrepTime||'');setValue('reviewCookTime',x.draftCookTime||'');setValue('reviewTotalTime',x.draftTotalTime||'');setValue('reviewNotes',x.draftNotes||'')},0)};wrapped.__timesWrapped=true;window.reviewPhoto=wrapped;clearInterval(poll)}},100);
 
-  function addNotesField(container,prefix,beforeEl){
-    if(!container || document.getElementById(prefix+'Notes')) return;
-    const wrap=document.createElement('div');
-    wrap.className='field';
-    wrap.innerHTML=`<label>Notes</label><textarea id="${prefix}Notes" placeholder="Optional notes about this recipe"></textarea>`;
-    if(beforeEl && beforeEl.parentElement===container) container.insertBefore(wrap,beforeEl); else container.appendChild(wrap);
-  }
+  window.saveManualRecipe=function(){const title=getValue('manualTitle');if(!title)return alert('Add the recipe name first.');const finish=(photo='')=>{const status=document.getElementById('manualStatus')?.value||'saved';recipes.unshift({id:id(),title,ingredients:getValue('manualIngredients'),instructions:getValue('manualInstructions'),tags:getValue('manualTags').split(',').map(x=>x.trim()).filter(Boolean),source:getValue('manualSource'),status,favorite:status==='favorite',photo,prepTime:getValue('manualPrepTime'),cookTime:getValue('manualCookTime'),totalTime:getValue('manualTotalTime'),notes:getValue('manualNotes'),createdAt:new Date().toISOString()});['manualTitle','manualIngredients','manualInstructions','manualTags','manualSource','manualPrepTime','manualCookTime','manualTotalTime','manualNotes'].forEach(k=>setValue(k,''));const p=document.getElementById('manualPhoto');if(p)p.value='';save();showView('recipes')};const f=document.getElementById('manualPhoto')?.files?.[0];if(f){const r=new FileReader();r.onload=()=>finish(r.result);r.readAsDataURL(f)}else finish()};
 
-  function enhanceEntryForms(){
-    const manual=document.getElementById('manualForm');
-    if(manual){
-      const saveBtn=[...manual.querySelectorAll('button')].find(b=>/save recipe/i.test(b.textContent));
-      addTimeFields(manual,'manual',saveBtn);
-      addNotesField(manual,'manual',saveBtn);
-    }
-    const photo=document.getElementById('photoReview');
-    if(photo){
-      const right=photo.querySelector('.review-grid > div:last-child');
-      const details=right?.querySelector('details');
-      addTimeFields(right,'review',details);
-      addNotesField(right,'review',details);
-    }
-  }
+  window.saveReviewedPhotoRecipe=function(){const x=queue.find(a=>a.id===currentReviewId);if(!x)return;const title=getValue('reviewTitle');if(!title)return alert('Add the recipe name before saving.');const status=document.getElementById('reviewStatus')?.value||'saved';recipes.unshift({id:id(),title,ingredients:getValue('reviewIngredients'),instructions:getValue('reviewInstructions'),tags:getValue('reviewTags').split(',').map(x=>x.trim()).filter(Boolean),source:'Imported from recipe photo',status,favorite:status==='favorite',photo:x.thumb||'',prepTime:getValue('reviewPrepTime'),cookTime:getValue('reviewCookTime'),totalTime:getValue('reviewTotalTime'),notes:getValue('reviewNotes'),createdAt:new Date().toISOString()});queue=queue.filter(a=>a.id!==currentReviewId);currentReviewId=null;save();showView('recipes')};
 
-  function setValue(id,v=''){const el=document.getElementById(id);if(el) el.value=v||''}
-  function getValue(id){return (document.getElementById(id)?.value||'').trim()}
+  function fractionToNumber(s){const u={'¼':.25,'½':.5,'¾':.75,'⅓':1/3,'⅔':2/3,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};if(u[s]!=null)return u[s];if(/^\d+\s+\d+\/\d+$/.test(s)){const[w,f]=s.split(/\s+/),[a,b]=f.split('/').map(Number);return Number(w)+a/b}if(/^\d+-\d+\/\d+$/.test(s)){const[w,f]=s.split('-'),[a,b]=f.split('/').map(Number);return Number(w)+a/b}if(/^\d+\/\d+$/.test(s)){const[a,b]=s.split('/').map(Number);return a/b}return Number(s)}
+  function niceNumber(n){if(!Number.isFinite(n))return'';const whole=Math.floor(n+1e-9),rem=n-whole,fracs=[[.125,'⅛'],[.25,'¼'],[1/3,'⅓'],[.375,'⅜'],[.5,'½'],[.625,'⅝'],[2/3,'⅔'],[.75,'¾'],[.875,'⅞']];let best=fracs.reduce((a,b)=>Math.abs(b[0]-rem)<Math.abs(a[0]-rem)?b:a,[0,'']);if(rem<.04)best=[0,''];if(1-rem<.04)return String(whole+1);return whole?(best[1]?whole+' '+best[1]:String(whole)):(best[1]||String(Math.round(n*100)/100))}
+  function scaleLine(line,factor){if(factor===1)return line;return String(line).replace(/^\s*(\d+\s+\d+\/\d+|\d+-\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞])/,m=>niceNumber(fractionToNumber(m.trim())*factor))} function scaledIngredients(text,factor){return String(text||'').split(/\r?\n/).map(l=>scaleLine(l,factor)).join('\n')}
+  window.showRecipeDetailTab=function(name,button){document.querySelectorAll('.recipe-tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.recipe-tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('recipeTab'+name)?.classList.add('active');button?.classList.add('active')};
+  window.setRecipeBatch=function(rid,factor,button){const r=recipes.find(x=>x.id===rid);if(!r)return;document.querySelectorAll('.batch-btn').forEach(b=>b.classList.remove('active'));button?.classList.add('active');const out=document.getElementById('batchIngredients');if(out)out.textContent=scaledIngredients(r.ingredients,factor);const label=document.getElementById('batchLabel');if(label)label.textContent=factor===1?'Single batch':factor===2?'Double batch':'Triple batch'};
+  window.saveRecipeNotes=function(rid){const r=recipes.find(x=>x.id===rid);if(!r)return;r.notes=(document.getElementById('recipeNotes')?.value||'').trim();save();const b=document.getElementById('saveNotesBtn');if(b){const old=b.textContent;b.textContent='Saved ✓';setTimeout(()=>b.textContent=old,1200)}};
 
-  // Populate photo-review extra fields whenever Review opens.
-  const poll=setInterval(()=>{
-    if(typeof window.reviewPhoto==='function' && !window.reviewPhoto.__timesWrapped){
-      const original=window.reviewPhoto;
-      const wrapped=function(qid){
-        original(qid);
-        setTimeout(()=>{
-          enhanceEntryForms();
-          const x=queue.find(a=>a.id===qid);
-          if(!x) return;
-          setValue('reviewPrepTime',x.draftPrepTime||'');
-          setValue('reviewCookTime',x.draftCookTime||'');
-          setValue('reviewTotalTime',x.draftTotalTime||'');
-          setValue('reviewNotes',x.draftNotes||'');
-        },0);
-      };
-      wrapped.__timesWrapped=true;
-      window.reviewPhoto=wrapped;
-      clearInterval(poll);
-    }
-  },100);
+  function escAttr(v=''){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  window.editSavedRecipe=function(rid){ensureStyles();const r=recipes.find(x=>x.id===rid);if(!r)return;document.querySelector('.recipe-edit-overlay')?.remove();const o=document.createElement('div');o.className='recipe-edit-overlay';o.innerHTML=`<div class="recipe-edit-modal"><div class="recipe-edit-modal-head"><h3>Edit Recipe</h3><button class="btn btn-soft" id="closeRecipeEdit">Close</button></div><div class="recipe-edit-grid"><div class="field"><label>Recipe name</label><input id="editRecipeTitle" value="${escAttr(r.title||'')}"></div><div class="field"><label>Status</label><select id="editRecipeStatus"><option value="saved" ${r.status==='saved'&&!r.favorite?'selected':''}>Saved — haven't made it</option><option value="tested" ${r.status==='tested'?'selected':''}>Tested & good</option><option value="favorite" ${r.favorite?'selected':''}>Favorite</option></select></div><div class="field"><label>Prep time</label><input id="editRecipePrep" value="${escAttr(r.prepTime||'')}"></div><div class="field"><label>Cook time</label><input id="editRecipeCook" value="${escAttr(r.cookTime||'')}"></div><div class="field"><label>Total time</label><input id="editRecipeTotal" value="${escAttr(r.totalTime||'')}"></div><div class="field"><label>Tags</label><input id="editRecipeTags" value="${escAttr((r.tags||[]).join(', '))}"></div></div><div class="field"><label>Ingredients</label><textarea id="editRecipeIngredients">${escapeHtml(r.ingredients||'')}</textarea></div><div class="field"><label>Instructions</label><textarea id="editRecipeInstructions">${escapeHtml(r.instructions||'')}</textarea></div><div class="field"><label>Notes</label><textarea id="editRecipeNotes">${escapeHtml(r.notes||'')}</textarea></div><div class="field"><label>Source / URL</label><input id="editRecipeSource" value="${escAttr(r.source||'')}"></div><div class="recipe-edit-actions"><button class="btn btn-soft" id="cancelRecipeEdit">Cancel</button><button class="btn btn-primary" id="saveRecipeEdit">Save Changes</button></div></div>`;document.body.appendChild(o);const close=()=>o.remove();o.querySelector('#closeRecipeEdit').onclick=close;o.querySelector('#cancelRecipeEdit').onclick=close;o.addEventListener('click',e=>{if(e.target===o)close()});o.querySelector('#saveRecipeEdit').onclick=()=>{const title=o.querySelector('#editRecipeTitle').value.trim();if(!title)return alert('Recipe name cannot be blank.');const st=o.querySelector('#editRecipeStatus').value;r.title=title;r.status=st==='favorite'?'saved':st;r.favorite=st==='favorite';r.prepTime=o.querySelector('#editRecipePrep').value.trim();r.cookTime=o.querySelector('#editRecipeCook').value.trim();r.totalTime=o.querySelector('#editRecipeTotal').value.trim();r.tags=o.querySelector('#editRecipeTags').value.split(',').map(x=>x.trim()).filter(Boolean);r.ingredients=o.querySelector('#editRecipeIngredients').value.trim();r.instructions=o.querySelector('#editRecipeInstructions').value.trim();r.notes=o.querySelector('#editRecipeNotes').value.trim();r.source=o.querySelector('#editRecipeSource').value.trim();const ok=save();if(ok===false)return;close();renderRecipes();window.openRecipe(rid)}};
 
-  window.saveManualRecipe=function(){
-    const title=getValue('manualTitle');
-    if(!title) return alert('Add the recipe name first.');
-    const finish=(photo='')=>{
-      const status=document.getElementById('manualStatus')?.value||'saved';
-      recipes.unshift({
-        id:id(),title,
-        ingredients:getValue('manualIngredients'),
-        instructions:getValue('manualInstructions'),
-        tags:getValue('manualTags').split(',').map(x=>x.trim()).filter(Boolean),
-        source:getValue('manualSource'),status,favorite:status==='favorite',photo,
-        prepTime:getValue('manualPrepTime'),cookTime:getValue('manualCookTime'),totalTime:getValue('manualTotalTime'),notes:getValue('manualNotes'),
-        createdAt:new Date().toISOString()
-      });
-      ['manualTitle','manualIngredients','manualInstructions','manualTags','manualSource','manualPrepTime','manualCookTime','manualTotalTime','manualNotes'].forEach(k=>setValue(k,''));
-      const p=document.getElementById('manualPhoto'); if(p) p.value='';
-      save();showView('recipes');
-    };
-    const f=document.getElementById('manualPhoto')?.files?.[0];
-    if(f){const r=new FileReader();r.onload=()=>finish(r.result);r.readAsDataURL(f)}else finish();
-  };
+  window.openRecipe=function(rid){ensureStyles();const r=recipes.find(x=>x.id===rid);if(!r)return;const card=document.getElementById('detailCard');if(!card)return;const time=v=>escapeHtml(v||'Not set');card.innerHTML=`<div class="detail-cover">${r.photo?`<img src="${r.photo}" alt="${escapeHtml(r.title)}">`:'<div class="photo-fallback">🍽</div>'}</div><div class="detail-body"><div class="eyebrow">${labelStatus(r)}</div><div class="recipe-heading-row"><h2>${escapeHtml(r.title)}</h2><button type="button" class="btn btn-soft edit-recipe-btn" onclick="editSavedRecipe('${r.id}')">✎ Edit Recipe</button></div><div class="meta">${(r.tags||[]).map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join('')}</div><div class="recipe-time-grid"><div class="recipe-time-card"><span>Prep time</span><strong>${time(r.prepTime)}</strong></div><div class="recipe-time-card"><span>Cook time</span><strong>${time(r.cookTime)}</strong></div><div class="recipe-time-card"><span>Total time</span><strong>${time(r.totalTime)}</strong></div></div><div class="recipe-tabs"><button class="recipe-tab-btn active" onclick="showRecipeDetailTab('Recipe',this)">Recipe</button><button class="recipe-tab-btn" onclick="showRecipeDetailTab('Batch',this)">Batch Size</button><button class="recipe-tab-btn" onclick="showRecipeDetailTab('Notes',this)">Notes</button></div><div id="recipeTabRecipe" class="recipe-tab-panel active"><div class="detail-columns"><div class="detail-block"><h4>Ingredients</h4><pre>${escapeHtml(r.ingredients||'')}</pre></div><div class="detail-block"><h4>Instructions</h4><pre>${escapeHtml(r.instructions||'')}</pre></div></div></div><div id="recipeTabBatch" class="recipe-tab-panel"><h4 style="font-family:Georgia,serif;font-size:21px;margin:0 0 12px;color:#4b3943">Batch Size</h4><div class="batch-buttons"><button class="batch-btn active" onclick="setRecipeBatch('${r.id}',1,this)">Single (1×)</button><button class="batch-btn" onclick="setRecipeBatch('${r.id}',2,this)">Double (2×)</button><button class="batch-btn" onclick="setRecipeBatch('${r.id}',3,this)">Triple (3×)</button></div><div class="batch-note">The original recipe stays unchanged. This only adjusts the ingredient amounts you are viewing.</div><div class="detail-block"><h4 id="batchLabel">Single batch</h4><pre id="batchIngredients">${escapeHtml(r.ingredients||'')}</pre></div></div><div id="recipeTabNotes" class="recipe-tab-panel"><h4 style="font-family:Georgia,serif;font-size:21px;margin:0 0 12px;color:#4b3943">My Notes</h4><textarea id="recipeNotes" class="notes-box" placeholder="Add notes about substitutions, changes, family reactions, baking times, or anything else you want to remember.">${escapeHtml(r.notes||'')}</textarea><button id="saveNotesBtn" class="btn btn-primary" style="margin-top:12px" onclick="saveRecipeNotes('${r.id}')">Save Notes</button></div></div>`;showView('detail')};
 
-  window.saveReviewedPhotoRecipe=function(){
-    const x=queue.find(a=>a.id===currentReviewId);if(!x)return;
-    const title=getValue('reviewTitle');if(!title)return alert('Add the recipe name before saving.');
-    const status=document.getElementById('reviewStatus')?.value||'saved';
-    recipes.unshift({
-      id:id(),title,
-      ingredients:getValue('reviewIngredients'),instructions:getValue('reviewInstructions'),
-      tags:getValue('reviewTags').split(',').map(x=>x.trim()).filter(Boolean),
-      source:'Imported from recipe photo',status,favorite:status==='favorite',photo:x.thumb||'',
-      prepTime:getValue('reviewPrepTime'),cookTime:getValue('reviewCookTime'),totalTime:getValue('reviewTotalTime'),notes:getValue('reviewNotes'),
-      createdAt:new Date().toISOString()
-    });
-    queue=queue.filter(a=>a.id!==currentReviewId);currentReviewId=null;save();showView('recipes');
-  };
-
-  function fractionToNumber(s){
-    const unicode={'¼':.25,'½':.5,'¾':.75,'⅓':1/3,'⅔':2/3,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
-    if(unicode[s]!=null) return unicode[s];
-    if(/^\d+\s+\d+\/\d+$/.test(s)){const [w,f]=s.split(/\s+/);const [a,b]=f.split('/').map(Number);return Number(w)+a/b}
-    if(/^\d+-\d+\/\d+$/.test(s)){const [w,f]=s.split('-');const [a,b]=f.split('/').map(Number);return Number(w)+a/b}
-    if(/^\d+\/\d+$/.test(s)){const [a,b]=s.split('/').map(Number);return a/b}
-    return Number(s);
-  }
-  function niceNumber(n){
-    if(!Number.isFinite(n)) return '';
-    const whole=Math.floor(n+1e-9), rem=n-whole;
-    const fracs=[[.125,'⅛'],[.25,'¼'],[1/3,'⅓'],[.375,'⅜'],[.5,'½'],[.625,'⅝'],[2/3,'⅔'],[.75,'¾'],[.875,'⅞']];
-    let best=fracs.reduce((a,b)=>Math.abs(b[0]-rem)<Math.abs(a[0]-rem)?b:a,[0,'']);
-    if(rem<.04) best=[0,''];
-    if(1-rem<.04) return String(whole+1);
-    return whole?(best[1]?whole+' '+best[1]:String(whole)):(best[1]||String(Math.round(n*100)/100));
-  }
-  function scaleSingleQuantity(q,factor){return niceNumber(fractionToNumber(q)*factor)}
-  function scaleLine(line,factor){
-    if(factor===1) return line;
-    return String(line).replace(/^\s*(\d+\s+\d+\/\d+|\d+-\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞])(?:\s*[-–]\s*(\d+(?:\.\d+)?))?/,m=>{
-      const range=m.match(/^\s*(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
-      if(range) return `${niceNumber(Number(range[1])*factor)}-${niceNumber(Number(range[2])*factor)}`;
-      const q=m.trim();return scaleSingleQuantity(q,factor);
-    });
-  }
-  function scaledIngredients(text,factor){return String(text||'').split(/\r?\n/).map(l=>scaleLine(l,factor)).join('\n')}
-
-  window.showRecipeDetailTab=function(name,button){
-    document.querySelectorAll('.recipe-tab-panel').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.recipe-tab-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById('recipeTab'+name)?.classList.add('active');
-    button?.classList.add('active');
-  };
-  window.setRecipeBatch=function(rid,factor,button){
-    const r=recipes.find(x=>x.id===rid);if(!r)return;
-    document.querySelectorAll('.batch-btn').forEach(b=>b.classList.remove('active'));button?.classList.add('active');
-    const out=document.getElementById('batchIngredients');if(out) out.textContent=scaledIngredients(r.ingredients,factor);
-    const label=document.getElementById('batchLabel');if(label) label.textContent=factor===1?'Single batch':factor===2?'Double batch':'Triple batch';
-  };
-  window.saveRecipeNotes=function(rid){
-    const r=recipes.find(x=>x.id===rid);if(!r)return;
-    r.notes=(document.getElementById('recipeNotes')?.value||'').trim();save();
-    const b=document.getElementById('saveNotesBtn');if(b){const old=b.textContent;b.textContent='Saved ✓';setTimeout(()=>b.textContent=old,1200)}
-  };
-
-  window.openRecipe=function(rid){
-    const r=recipes.find(x=>x.id===rid);if(!r)return;
-    const card=document.getElementById('detailCard');if(!card)return;
-    const time=(v)=>escapeHtml(v||'Not set');
-    card.innerHTML=`
-      <div class="detail-cover">${r.photo?`<img src="${r.photo}" alt="${escapeHtml(r.title)}">`:'<div class="photo-fallback">🍽</div>'}</div>
-      <div class="detail-body">
-        <div class="eyebrow">${labelStatus(r)}</div>
-        <h2>${escapeHtml(r.title)}</h2>
-        <div class="meta">${(r.tags||[]).map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join('')}</div>
-        <div class="recipe-time-grid">
-          <div class="recipe-time-card"><span>Prep time</span><strong>${time(r.prepTime)}</strong></div>
-          <div class="recipe-time-card"><span>Cook time</span><strong>${time(r.cookTime)}</strong></div>
-          <div class="recipe-time-card"><span>Total time</span><strong>${time(r.totalTime)}</strong></div>
-        </div>
-        <div class="recipe-tabs">
-          <button class="recipe-tab-btn active" onclick="showRecipeDetailTab('Recipe',this)">Recipe</button>
-          <button class="recipe-tab-btn" onclick="showRecipeDetailTab('Batch',this)">Batch Size</button>
-          <button class="recipe-tab-btn" onclick="showRecipeDetailTab('Notes',this)">Notes</button>
-        </div>
-        <div id="recipeTabRecipe" class="recipe-tab-panel active">
-          <div class="detail-columns">
-            <div class="detail-block"><h4>Ingredients</h4><pre>${escapeHtml(r.ingredients||'')}</pre></div>
-            <div class="detail-block"><h4>Instructions</h4><pre>${escapeHtml(r.instructions||'')}</pre></div>
-          </div>
-        </div>
-        <div id="recipeTabBatch" class="recipe-tab-panel">
-          <h4 style="font-family:Georgia,serif;font-size:21px;margin:0 0 12px;color:#4b3943">Batch Size</h4>
-          <div class="batch-buttons">
-            <button class="batch-btn active" onclick="setRecipeBatch('${r.id}',1,this)">Single (1×)</button>
-            <button class="batch-btn" onclick="setRecipeBatch('${r.id}',2,this)">Double (2×)</button>
-            <button class="batch-btn" onclick="setRecipeBatch('${r.id}',3,this)">Triple (3×)</button>
-          </div>
-          <div class="batch-note">The original recipe stays unchanged. This only adjusts the ingredient amounts you are viewing.</div>
-          <div class="detail-block"><h4 id="batchLabel">Single batch</h4><pre id="batchIngredients">${escapeHtml(r.ingredients||'')}</pre></div>
-        </div>
-        <div id="recipeTabNotes" class="recipe-tab-panel">
-          <h4 style="font-family:Georgia,serif;font-size:21px;margin:0 0 12px;color:#4b3943">My Notes</h4>
-          <textarea id="recipeNotes" class="notes-box" placeholder="Add notes about substitutions, changes, family reactions, baking times, or anything else you want to remember.">${escapeHtml(r.notes||'')}</textarea>
-          <button id="saveNotesBtn" class="btn btn-primary" style="margin-top:12px" onclick="saveRecipeNotes('${r.id}')">Save Notes</button>
-        </div>
-      </div>`;
-    showView('detail');
-  };
-
-  ensureStyles();
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',enhanceEntryForms); else enhanceEntryForms();
+  ensureStyles();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',enhanceEntryForms);else enhanceEntryForms();
 })();
