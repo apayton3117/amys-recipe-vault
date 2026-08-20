@@ -36,16 +36,21 @@
   }
 
   const storage=document.createElement('script');
-  storage.src='./storage-fix-v1.js?v=20260819-2020';
+  storage.src='./storage-fix-v1.js?v=20260819-2031';
   storage.onload=()=>{
     const details=document.createElement('script');
-    details.src='./recipe-details-v1.js?v=20260819-2020';
+    details.src='./recipe-details-v1.js?v=20260819-2031';
     details.onload=()=>{
       const photoEdit=document.createElement('script');
-      photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2022';
+      photoEdit.src='./recipe-photo-edit-v1.js?v=20260819-2031';
       photoEdit.onload=()=>{
         const persistence=document.createElement('script');
-        persistence.src='./persistence-v2.js?v=20260819-2020';
+        persistence.src='./persistence-v2.js?v=20260819-2031';
+        persistence.onload=()=>{
+          const finalEdit=document.createElement('script');
+          finalEdit.src='./recipe-edit-v2.js?v=20260819-2031';
+          document.body.appendChild(finalEdit);
+        };
         document.body.appendChild(persistence);
       };
       document.body.appendChild(photoEdit);
