@@ -230,3 +230,10 @@ setTimeout(relocateReviewPanels,0);
   s.src='./photo-reader-v4.js?v=20260819-1908';
   document.body.appendChild(s);
 })();
+
+// Load enhanced saved-recipe detail screen (times, Batch Size, Notes).
+(function(){
+  const s=document.createElement('script');
+  s.src='./recipe-details-v1.js?v=20260819-2008';
+  document.body.appendChild(s);
+})();
